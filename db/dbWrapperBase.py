@@ -360,6 +360,10 @@ class DbWrapperBase(ABC):
         pass
 
     @abstractmethod
+    def submit_fort_proto(self, origin, map_proto, mapper):
+        pass
+
+    @abstractmethod
     def download_gym_images(self):
         pass
 

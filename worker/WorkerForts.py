@@ -27,9 +27,9 @@ class FortSearchResultTypes(Enum):
     OUT_OF_RANGE = 7
 
 
-class WorkerQuests(MITMBase):
+class WorkerForts(MITMBase):
     def _valid_modes(self):
-        return ["pokestops"]
+        return ["forts"]
 
     def __init__(self, args, id, last_known_state, websocket_handler, walker_routemanager,
                  mitm_mapper, devicesettings, db_wrapper, pogoWindowManager, walker):
@@ -42,7 +42,6 @@ class WorkerQuests(MITMBase):
         # 1 => clear box
         # 2 => clear quest
         self.clear_thread_task = 0
-        self._start_inventory_clear = Event()
         self._delay_add = int(self._devicesettings.get("vps_delay", 0))
         self._stop_process_time = 0
 
@@ -69,7 +68,6 @@ class WorkerQuests(MITMBase):
         pass
 
     def _pre_location_update(self):
-        self._start_inventory_clear.set()
         self._update_injection_settings()
 
     def _move_to_location(self):
@@ -277,17 +275,17 @@ class WorkerQuests(MITMBase):
             raise InternalStopWorkerException
         self._work_mutex.acquire()
         if not self._walker_routemanager.init:
-            logger.info("Processing Stop / Quest...")
+            logger.info("Processing Fort...")
 
             reachedMainMenu = self._check_pogo_main_screen(10, False)
             if not reachedMainMenu:
                 self._restart_pogo(mitm_mapper=self._mitm_mapper)
 
-            logger.info('Open Stop')
+            logger.info('Begin Opening Fort')
 
-            data_received = self._open_fort( timestamp )
-            if data_received is not None and data_received == LatestReceivedType.STOP:
-                self._handle_stop(timestamp)
+            data_received = self._open_fort2( timestamp )
+            #if data_received is not None and data_received == LatestReceivedType.GYM:
+                #self._handle_stop(timestamp)
         else:
             logger.info('Currently in INIT Mode - no Stop processing')
         logger.debug("Releasing lock")
@@ -330,10 +328,6 @@ class WorkerQuests(MITMBase):
         logger.info('Starting clear Quest Thread')
         while not self._stop_worker_event.is_set():
             # wait for event signal
-            while not self._start_inventory_clear.is_set():
-                if self._stop_worker_event.is_set():
-                    return
-                time.sleep(0.5)
             if self.clear_thread_task > 0:
                 self._work_mutex.acquire()
                 try:
@@ -349,7 +343,6 @@ class WorkerQuests(MITMBase):
                         self._clear_quests(self._delay_add)
                         self.clear_thread_task = 0
                     time.sleep(1)
-                    self._start_inventory_clear.clear()
                 except WebsocketWorkerRemovedException as e:
                     logger.error("Worker removed while clearing quest/box")
                     self._stop_worker_event.set()
@@ -432,7 +425,7 @@ class WorkerQuests(MITMBase):
                         self._communicator.click(int(delx), int(dely))
 
                         data_received = self._wait_for_data(
-                            timestamp=curTime, proto_to_wait_for=4, timeout=35)
+                            timestamp=curTime, proto_to_wait_for=4, timeout=60)
 
                         if data_received != LatestReceivedType.UNDEFINED:
                             if data_received == LatestReceivedType.CLEAR:
@@ -458,7 +451,7 @@ class WorkerQuests(MITMBase):
 
     def _update_injection_settings(self):
         injected_settings = {}
-        scanmode = "quests"
+        scanmode = "forts"
         injected_settings["scanmode"] = scanmode
         ids_iv = self._walker_routemanager.settings.get("mon_ids_iv", None)
         # if iv ids are specified we will sync the workers encountered ids to newest time.
@@ -494,7 +487,10 @@ class WorkerQuests(MITMBase):
         self._mitm_mapper.update_latest(origin=self._id, key="injected_settings", values_dict=injected_settings)
 
     def _current_position_has_spinnable_stop(self, timestamp: float):
+        positionDelta = 0.00003
+
         latest: dict = self._mitm_mapper.request_latest(self._id)
+
         if latest is None or 106 not in latest.keys():
             return False
 
@@ -513,21 +509,48 @@ class WorkerQuests(MITMBase):
                 longitude: float = fort.get("longitude", 0.0)
                 if latitude == 0.0 or longitude == 0.0:
                     continue
-                elif (abs(self.current_location.lat - latitude) > 0.00003 or
-                      abs(self.current_location.lng - longitude) > 0.00003):
+                elif (abs(self.current_location.lat - latitude) > positionDelta or
+                      abs(self.current_location.lng - longitude) > positionDelta):
                     continue
 
-                fort_type: int = fort.get("type", 0)
-                if fort_type == 0:
-                    self._db_wrapper.delete_stop(latitude, longitude)
-                    return False
+                fort_type: int = fort.get("type", 1)
+                #if fort_type == 0:
+                #    self._db_wrapper.delete_stop(latitude, longitude)
+                #    return False
                 enabled: bool = fort.get("enabled", True)
                 closed: bool = fort.get("closed", False)
                 cooldown: int = fort.get("cooldown_complete_ms", 0)
-                return fort_type == 1 and enabled and not closed and cooldown == 0
+                return fort_type == 0 and enabled and not closed and cooldown == 0
         # by now we should've found the stop in the GMO
         # TODO: consider counter in DB for stop and delete if N reached, reset when updating with GMO
         return False
+
+    def _open_fort2( self , timestamp: float ):
+        super()._open_fort(self._delay_add)
+        time.sleep(10)
+        data_received = self._wait_for_data(
+                timestamp=timestamp, proto_to_wait_for=156, timeout=60)
+        if data_received == LatestReceivedType.STOP:
+            logger.info('Clicked STOP')
+            time.sleep(1)
+            if not self._checkPogoButton():
+                self._checkPogoClose()
+            time.sleep(1)
+            self._turn_map(self._delay_add)
+        elif data_received == LatestReceivedType.GYM:
+            time.sleep ( 1 )
+            self._checkPogoClose ()
+            time.sleep ( 1 )
+        elif data_received == LatestReceivedType.MON:
+            time.sleep(1)
+            logger.info('Clicked MONSTER')
+            time.sleep(.5)
+            self._turn_map(self._delay_add)
+        elif data_received == LatestReceivedType.UNDEFINED:
+            if not self._checkPogoButton():
+                self._checkPogoClose()
+
+        return data_received
 
     def _open_fort( self , timestamp: float ):
         to = 0
@@ -536,21 +559,23 @@ class WorkerQuests(MITMBase):
         # let's first check the GMO for the stop we intend to visit and abort if it's disabled, a gym, whatsoever
         if not self._current_position_has_spinnable_stop(timestamp):
             # wait for GMO in case we moved too far away
+            # aaaaaaaaaaaaaa
             data_received = self._wait_for_data(
-                    timestamp=timestamp, proto_to_wait_for=106, timeout=35)
+                    timestamp=timestamp, proto_to_wait_for=106, timeout=60)
             if data_received == LatestReceivedType.UNDEFINED and not self._current_position_has_spinnable_stop(timestamp):
                 logger.info("Stop {}, {} considered to be ignored in the next round due to failed spinnable check",
                             str(self.current_location.lat), str(self.current_location.lng))
                 self._walker_routemanager.add_coord_to_be_removed(self.current_location.lat, self.current_location.lng)
                 return None
-        while data_received != LatestReceivedType.STOP and int(to) < 3:
+
+        while data_received != LatestReceivedType.FORT and int(to) < 3:
             self._stop_process_time = math.floor(time.time())
             self._waittime_without_delays = self._stop_process_time
-            self._open_gym(self._delay_add)
+            super()._open_fort(self._delay_add)
             data_received = self._wait_for_data(
-                    timestamp=self._stop_process_time, proto_to_wait_for=104, timeout=35)
-            if data_received == LatestReceivedType.GYM:
-                logger.info('Clicking GYM')
+                    timestamp=self._stop_process_time, proto_to_wait_for=156, timeout=60)
+            if data_received == LatestReceivedType.STOP:
+                logger.info('Clicked STOP')
                 time.sleep(1)
                 if not self._checkPogoButton():
                     self._checkPogoClose()
@@ -558,7 +583,7 @@ class WorkerQuests(MITMBase):
                 self._turn_map(self._delay_add)
             elif data_received == LatestReceivedType.MON:
                 time.sleep(1)
-                logger.info('Clicking MON')
+                logger.info('Clicked MONSTER')
                 time.sleep(.5)
                 self._turn_map(self._delay_add)
             elif data_received == LatestReceivedType.UNDEFINED:
@@ -573,7 +598,7 @@ class WorkerQuests(MITMBase):
     def _handle_stop(self, timestamp: float):
         to = 0
         data_received = FortSearchResultTypes.UNDEFINED
-        while data_received != FortSearchResultTypes.QUEST and int(to) < 4:
+        while data_received != FortSearchResultTypes.GYM and int(to) < 4:
             logger.info('Spin Stop')
             data_received = self._wait_for_data(
                 timestamp=self._stop_process_time, proto_to_wait_for=101, timeout=35)

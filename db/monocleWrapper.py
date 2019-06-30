@@ -101,6 +101,9 @@ class MonocleWrapper(DbWrapperBase):
         else:
             logger.info('No Eggs due for hatching')
 
+    def submit_fort_proto(self, origin, map_proto , mapper):
+        return False
+
     def db_timestring_to_unix_timestamp(self, timestring):
         dt = datetime.strptime(timestring, '%Y-%m-%d %H:%M:%S.%f')
         unixtime = (dt - datetime(1970, 1, 1)).total_seconds()

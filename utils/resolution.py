@@ -30,6 +30,16 @@ class Resocalculator(object):
             click_y = int(self._screen_y) - (int(self._screen_x) / 1.6)
         return click_x + self._x_offset, click_y - self._y_offset
 
+    def get_fort_click_coords(self):
+        click_x = int(self._screen_x) / 2
+        if float(self._xyratio) >= 2:
+            click_y = int(self._screen_y) - (int(self._screen_x) / 1.35)
+        elif float(self._xyratio) >= 1.7:
+            click_y = int(self._screen_y) - (int(self._screen_x) / 1.55)
+        elif float(self._xyratio) < 1.7:
+            click_y = int(self._screen_y) - (int(self._screen_x) / 1.6)
+        return click_x + self._x_offset, click_y - self._y_offset
+
     def get_gym_spin_coords(self):
         click_y = int(self._screen_y) / 2
         click_x1 = int(self._screen_x) / 3

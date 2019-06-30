@@ -40,7 +40,7 @@ class MITMBase(WorkerBase):
 
     def _wait_for_data(self, timestamp: float = time.time(), proto_to_wait_for=106, timeout=None):
         if timeout is None:
-            timeout = self._devicesettings.get("mitm_wait_timeout", 45)
+            timeout = self._devicesettings.get("mitm_wait_timeout", 60)
 
         # let's fetch the latest data to add the offset to timeout (in case phone and server times are off...)
         latest = self._mitm_mapper.request_latest(self._id)
@@ -55,7 +55,6 @@ class MITMBase(WorkerBase):
         # if timestamp_last_data is not None and timestamp_last_received is not None:
         #     # add the difference of the two timestamps to timeout
         #     timeout += (timestamp_last_received - timestamp_last_data)
-
         logger.info('Waiting for data after {}',
                     datetime.fromtimestamp(timestamp))
         data_requested = LatestReceivedType.UNDEFINED
@@ -79,7 +78,7 @@ class MITMBase(WorkerBase):
         else:
             # TODO: timeout also happens if there is no useful data such as mons nearby in mon_mitm mode, we need to
             # TODO: be more precise (timeout vs empty data)
-            logger.warning("Timeout waiting for data")
+            logger.warning("Timeout waiting for data = " + str(proto_to_wait_for))
 
             self._mitm_mapper.collect_location_stats(self._id, self.current_location, 0, self._waittime_without_delays,
                                                      self._walker_routemanager.get_position_type(self._id), 0,
@@ -171,6 +170,16 @@ class MITMBase(WorkerBase):
         time.sleep(.5)
         x, y = self._resocalc.get_gym_click_coords(
             self)[0], self._resocalc.get_gym_click_coords(self)[1]
+        self._communicator.click(int(x), int(y))
+        time.sleep(.5 + int(delayadd))
+        logger.debug('{_open_gym} finished')
+        return
+
+    def _open_fort(self, delayadd):
+        logger.debug('{_open_gym} called')
+        time.sleep(.5)
+        x, y = self._resocalc.get_fort_click_coords(
+            self)[0], self._resocalc.get_fort_click_coords(self)[1]
         self._communicator.click(int(x), int(y))
         time.sleep(.5 + int(delayadd))
         logger.debug('{_open_gym} finished')

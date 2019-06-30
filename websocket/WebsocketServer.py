@@ -17,6 +17,7 @@ from utils.routeutil import pre_check_value
 from worker.WorkerConfigmode import WorkerConfigmode
 from worker.WorkerMITM import WorkerMITM
 from worker.WorkerQuests import WorkerQuests
+from worker.WorkerForts import WorkerForts
 
 OutgoingMessage = collections.namedtuple('OutgoingMessage', ['id', 'message'])
 Location = collections.namedtuple('Location', ['lat', 'lng'])
@@ -255,6 +256,10 @@ class WebsocketServer(object):
 
             if walker_routemanager is None:
                 pass
+            elif walker_routemanager.mode in ["forts_mitm"]:
+                worker = WorkerForts(self.args, id, last_known_state, self, walker_routemanager,
+                                      self.__mitm_mapper, devicesettings, db_wrapper=self.__db_wrapper,
+                                      pogoWindowManager=self.__pogoWindowManager, walker=walker_settings)
             elif walker_routemanager.mode in ["raids_mitm", "mon_mitm", "iv_mitm"]:
                 worker = WorkerMITM(self.args, id, last_known_state, self, walker_routemanager,
                                     self.__mitm_mapper, devicesettings, db_wrapper=self.__db_wrapper,

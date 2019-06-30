@@ -12,16 +12,14 @@ Location = collections.namedtuple('Location', ['lat', 'lng'])
 class RouteManagerQuests(RouteManagerBase):
     def generate_stop_list(self):
         time.sleep(5)
-        stops = self.db_wrapper.stop_from_db_without_quests(
-            self.geofence_helper)
-        logger.info('Detected stops without quests: {}', str(stops))
-        self._stoplist: List[Location] = stops
+        forts = self.db_wrapper.gyms_from_db(self.geofence_helper)
+        self._fortlist: List[Location ] = forts
 
     def _retrieve_latest_priority_queue(self):
         return None
 
     def _get_coords_post_init(self):
-        return self.db_wrapper.stops_from_db(self.geofence_helper)
+        return self.db_wrapper.gyms_from_db(self.geofence_helper)
 
     def _cluster_priority_queue_criteria(self):
         pass
@@ -50,7 +48,7 @@ class RouteManagerQuests(RouteManagerBase):
                                   name=name, settings=settings, mode=mode
                                   )
         self.starve_route = False
-        self._stoplist: List[Location] = []
+        self._fortlist: List[Location ] = []
 
     def _get_coords_after_finish_route(self):
         self._manager_mutex.acquire()
@@ -63,7 +61,7 @@ class RouteManagerQuests(RouteManagerBase):
                 self._start_calc = False
                 return True
             self.generate_stop_list()
-            if len(self._stoplist) == 0:
+            if len( self._fortlist ) == 0:
                 self._start_calc = False
                 return False
             coords: List[Location] = self._check_unprocessed_stops()
@@ -90,11 +88,11 @@ class RouteManagerQuests(RouteManagerBase):
             list_of_stops_to_return: List[Location] = []
             stops_not_processed: Dict[Location, int] = {}
 
-            if len(self._stoplist) == 0:
+            if len( self._fortlist ) == 0:
                 return list_of_stops_to_return
             else:
                 # we only want to add stops that we haven't spun yet
-                for stop in self._stoplist:
+                for stop in self._fortlist:
                     if stop not in stops_not_processed:
                         stops_not_processed[stop] = 1
                     else:
@@ -122,7 +120,7 @@ class RouteManagerQuests(RouteManagerBase):
                     self.geofence_helper)
                 logger.info('Detected {} stops without quests', len(stops))
                 logger.debug('Detected stops without quests: {}', str(stops))
-                self._stoplist: List[Location] = stops
+                self._fortlist: List[Location ] = stops
 
                 self._prio_queue = None
                 self.delay_after_timestamp_prio = None
@@ -152,7 +150,7 @@ class RouteManagerQuests(RouteManagerBase):
         # check_stop = str(lat) + '#' + str(lng)
         stop = Location(lat, lng)
         logger.info('Checking Stop with ID {}', str(stop))
-        if stop not in self._stoplist:
+        if stop not in self._fortlist:
             logger.info('Already got this Stop')
             return False
         logger.info('Getting new Stop')

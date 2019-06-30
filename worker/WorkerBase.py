@@ -70,7 +70,7 @@ class WorkerBase(ABC):
             self.last_location = Location(0.0, 0.0)
 
         if self._devicesettings.get('last_mode', None) is not None and \
-                self._devicesettings['last_mode'] in ("raids_mitm", "mon_mitm", "iv_mitm", "raids_ocr"):
+                self._devicesettings['last_mode'] in ("raids_mitm", "mon_mitm", "iv_mitm", "raids_ocr", "forts_mitm"):
             # Reset last_location - no useless waiting delays (otherwise stop mode)
             logger.info('{}: last Mode not pokestop - reset saved location', str(self._id))
             self.last_location = Location(0.0, 0.0)

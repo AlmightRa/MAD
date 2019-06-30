@@ -9,30 +9,42 @@ from route.RouteManagerIV import RouteManagerIV
 from route.RouteManagerMon import RouteManagerMon
 from route.RouteManagerQuests import RouteManagerQuests
 from route.RouteManagerRaids import RouteManagerRaids
+from route.RouteManagerForts import RouteManagerForts
 from utils.collections import Location
 from utils.logging import logger
 from utils.s2Helper import S2Helper
 
 mode_mapping = {
-    "raids_mitm": {
+    "raids_mitm":
+    {
         "s2_cell_level": 13,
         "range":         490,
         "range_init":    490,
         "max_count":     100000
 
     },
-    "mon_mitm":   {
+    "mon_mitm":
+    {
         "s2_cell_level": 17,
         "range":         67,
         "range_init":    67,
         "max_count":     100000
     },
-    "raids_ocr": {
+    "raids_ocr":
+    {
         "range":         490,
         "range_init":    490,
         "max_count":     7
     },
-    "pokestops":  {
+    "pokestops":
+    {
+        "s2_cell_level": 13,
+        "range":         1,
+        "range_init":    490,
+        "max_count":     100000
+    },
+    "forts_mitm":
+    {
         "s2_cell_level": 13,
         "range":         1,
         "range_init":    490,
@@ -97,7 +109,22 @@ class MappingParser(object):
                 area["geofence_included"], area.get("geofence_excluded", None))
             mode = area["mode"]
             # build routemanagers
-            if mode == "raids_ocr" or mode == "raids_mitm":
+            logger.debug("bulding routemanagers")
+            logger.debug("mode= " + mode)
+            if mode == "forts_mitm":
+                route_manager = RouteManagerForts(self.db_wrapper, None, mode_mapping[area["mode"]]["range"],
+                                                  mode_mapping[area["mode"]
+                                                               ]["max_count"],
+                                                  area["geofence_included"], area.get(
+                                                      "geofence_excluded", None),
+                                                  area["routecalc"],
+                                                  mode=area["mode"], settings=area.get(
+                                                      "settings", None),
+                                                  init=area.get("init", False),
+                                                  name=area.get(
+                                                      "name", "unknown")
+                                                  )
+            elif mode == "raids_ocr" or mode == "raids_mitm":
                 route_manager = RouteManagerRaids(self.db_wrapper, None, mode_mapping[area["mode"]]["range"],
                                                   mode_mapping[area["mode"]
                                                                ]["max_count"],
@@ -183,6 +210,8 @@ class MappingParser(object):
                                 geofence_helper)
                     elif mode == "pokestops":
                         coords = self.db_wrapper.stops_from_db(geofence_helper)
+                    elif mode == "forts_mitm":
+                        coords = self.db_wrapper.gyms_from_db(geofence_helper)
                     else:
                         logger.error("Mode not implemented yet: {}", str(mode))
                         exit(1)

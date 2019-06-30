@@ -11,7 +11,7 @@ from worker.MITMBase import MITMBase, LatestReceivedType
 
 class WorkerMITM(MITMBase):
     def _valid_modes(self):
-        return ["iv_mitm", "raids_mitm", "mon_mitm"]
+        return ["iv_mitm", "raids_mitm", "mon_mitm", "forts_mitm"]
 
     def _health_check(self):
         logger.debug("_health_check: called")
@@ -170,6 +170,9 @@ class WorkerMITM(MITMBase):
         elif routemanager.mode == "iv_mitm" and isinstance(routemanager, RouteManagerIV):
             scanmode = "ivs"
             ids_iv = routemanager.encounter_ids_left
+        elif routemanager.mode == "forts_mitm":
+            scanmode = "forts"
+            ids_iv = routemanager.settings.get ( "mon_ids_iv" , None )
         else:
             # TODO: should we throw an exception here?
             ids_iv = {}
@@ -242,7 +245,7 @@ class WorkerMITM(MITMBase):
                     if data_requested is None:
                         logger.debug("No spawnpoints in data requested")
                         time.sleep(1)
-                elif current_mode in ["raids_mitm"]:
+                elif current_mode in ["raids_mitm", "forts_mitm"]:
                     for data_extract in latest_data['payload']['cells']:
                         for forts in data_extract['forts']:
                             if forts['id']:
